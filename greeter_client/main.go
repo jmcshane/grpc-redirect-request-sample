@@ -55,6 +55,7 @@ func main() {
 	defer cancel()
 	req := &pb.HelloRequest{Name: *name}
 	if *ip != "" {
+		log.Printf("Setting IP in request: %s", *ip)
 		req.Ip = *ip
 	}
 	r, err := c.SayHello(ctx, req)

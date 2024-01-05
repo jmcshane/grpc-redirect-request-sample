@@ -1,4 +1,13 @@
-# gRPC Hello World
+# gRPC Hello World Delegate to Specified IP
+
+## Run in Kind
+
+* Set up a kind cluster with Istio.
+* Deploy the backend server with `kubectl apply -f server-deployment.yaml`
+* Base64 encode the IP address of one of the backend pods: `kubectl get pod -l app=grpc-server -o json | jq -jr '.items[0].status.podIP' | base64`
+* Set this as the `--ip` argument in `client-job.yaml`
+
+## Build Docs
 
 Follow these setup to run the [quick start][] example:
 

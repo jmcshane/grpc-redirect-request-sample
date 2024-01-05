@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: grpc-client
+spec:
+  template:
+    spec:
+      containers:
+      - name: grpc
+        image: grpc-client:latest
+        imagePullPolicy: Never
+        command: ["/bin/sh"]
+        args: ["-c", "sleep 2 && /greeter-client --addr grpc-server-deployment:50051 --ip MTAuMTI4LjAuNjk="]
+      restartPolicy: Never
+  backoffLimit: 1

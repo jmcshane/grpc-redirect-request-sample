@@ -45,9 +45,9 @@ type server struct {
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
-	if in.Ip != "" && !localMatch(in.Ip) {
+	if dec, ok := localMatch(in.Ip); !ok {
 
-		conn, err := grpc.Dial(fmt.Sprintf("%s:50051", in.Ip), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.Dial(fmt.Sprintf("%s:50051", dec), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Printf("did not connect: %v", err)
 			return nil, err
@@ -56,6 +56,7 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 		c := pb.NewGreeterClient(conn)
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
+		log.Printf("Delegating request to %s", dec)
 		return c.SayHello(ctx, in)
 	}
 	log.Printf("Received: %v", in.GetName())
@@ -63,12 +64,19 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 }
 
 // falls back to processing locally so we don't get stuck in a loop
-func localMatch(reqIp string) bool {
+func localMatch(reqIp string) (string, bool) {
+	if reqIp == "" {
+		return "", true
+	}
 	sDec, err := base64.StdEncoding.DecodeString(reqIp)
 	if err != nil {
-		return true
+		return "", true
 	}
-	return string(sDec) == *ip
+	if string(sDec) == "127.0.0.1" {
+		return "", true
+	}
+	fmt.Printf("My ip is %s and req ip is %s", *ip, string(sDec))
+	return string(sDec), string(sDec) == *ip
 }
 
 func main() {

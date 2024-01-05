@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpc-server-deployment
+  labels:
+    app: grpc-server
+  annotations:
+    traffic.sidecar.istio.io/excludeOutboundPorts: "50051"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: grpc-server
+  template:
+    metadata:
+      labels:
+        app: grpc-server
+      annotations:
+        traffic.sidecar.istio.io/excludeOutboundPorts: "50051"
+    spec:
+      containers:
+      - name: grpc-server
+        image: grpc-server:latest
+        command: ["/bin/sh", "-c"]
+        args: ["/greeter-server --ip ${HOST_IP}"]
+        env:
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 50051
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: grpc-server
+  name: grpc-server-deployment
+  namespace: default
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: grpc
+    port: 50051
+    protocol: TCP
+    targetPort: 50051
+  selector:
+    app: grpc-server
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: grpc-server-deployment
+spec:
+  host: grpc-server-deployment
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: grpc-server-deployment
+spec:
+  hosts:
+  - 'grpc-server-deployment'
+  - 'grpc-server-deployment.default.svc.cluster.local'
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: grpc-server-deployment
+        port:
+          number: 50051
